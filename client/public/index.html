@@ -5,103 +5,175 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Helfy Login Demo</title>
   <style>
-    body { font-family: Arial, sans-serif; margin: 2rem auto; max-width: 640px; }
+    :root {
+      --bg: #0b132b;
+      --panel: #1c2541;
+      --accent: #5bc0be;
+      --muted: #9fb3c8;
+      --text: #f4f8ff;
+      --border: #2e3a5b;
+      --danger: #ff6b6b;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: "Segoe UI", Arial, sans-serif;
+      background: linear-gradient(135deg, #0b132b 0%, #1c2541 100%);
+      color: var(--text);
+      margin: 0;
+      padding: 2rem;
+      display: flex;
+      justify-content: center;
+    }
+    .shell {
+      width: 960px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.5rem;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.35);
+    }
+    h1 { margin-top: 0; }
+    p { color: var(--muted); }
     form { display: grid; gap: 0.5rem; margin-bottom: 1rem; }
-    label { font-weight: bold; }
-    input { padding: 0.4rem; }
-    button { padding: 0.5rem 0.75rem; }
-    pre { background: #f7f7f7; padding: 0.75rem; border: 1px solid #ddd; }
-    fieldset { border: 1px solid #ccc; padding: 1rem; margin-top: 1rem; }
-    legend { padding: 0 0.5rem; font-weight: bold; }
+    label { font-weight: 600; }
+    input {
+      padding: 0.6rem 0.7rem;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: #11172c;
+      color: var(--text);
+    }
+    input:focus {
+      outline: 1px solid var(--accent);
+      border-color: var(--accent);
+    }
+    button {
+      padding: 0.6rem 0.9rem;
+      border: none;
+      border-radius: 8px;
+      background: var(--accent);
+      color: #031525;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    button:hover { filter: brightness(1.05); }
+    pre {
+      background: #0f1830;
+      padding: 0.75rem;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow-x: auto;
+    }
+    fieldset {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1rem;
+      margin-top: 1rem;
+    }
+    legend { padding: 0 0.5rem; font-weight: 700; color: var(--accent); }
+    .grid-two {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+    .actions { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
   </style>
 </head>
-  <body>
-  <h1>Helfy Login + Products</h1>
-  <p>Login and fetch protected products via the API.</p>
+<body>
+  <div class="shell">
+    <h1>Helfy Login + Products</h1>
+    <p>Login and view protected products via the API.</p>
 
-  <form id="loginForm">
-    <div>
-      <label for="email">Email</label>
-      <input id="email" name="email" type="email" required placeholder="you@example.com" />
-    </div>
-    <div>
-      <label for="password">Password</label>
-      <input id="password" name="password" type="password" required placeholder="Enter password" />
-    </div>
-    <button type="submit">Login</button>
-  </form>
+    <form id="loginForm">
+      <div class="grid-two">
+        <div>
+          <label for="email">Email</label>
+          <input id="email" name="email" type="email" required placeholder="you@example.com" />
+        </div>
+        <div>
+          <label for="password">Password</label>
+          <input id="password" name="password" type="password" required placeholder="Enter password" />
+        </div>
+      </div>
+      <div class="actions">
+        <button type="submit">Login</button>
+        <span id="loginStatus" style="color: var(--muted);"></span>
+      </div>
+    </form>
 
-  <div>
-    <button id="loadProducts">Load Products</button>
+    <fieldset>
+      <legend>Add product</legend>
+      <form id="createProductForm">
+        <div class="grid-two">
+          <div>
+            <label for="slug">Slug</label>
+            <input id="slug" name="slug" type="text" required placeholder="doctorabc" />
+          </div>
+          <div>
+            <label for="name">Name</label>
+            <input id="name" name="name" type="text" required placeholder="DoctorABC" />
+          </div>
+          <div>
+            <label for="target">Target audience</label>
+            <input id="target" name="target" type="text" required placeholder="patient/doctor/pharmacy" />
+          </div>
+          <div>
+            <label for="description">Description</label>
+            <input id="description" name="description" type="text" placeholder="Short description" />
+          </div>
+        </div>
+        <button type="submit">Create product</button>
+      </form>
+    </fieldset>
+
+    <fieldset>
+      <legend>Update product</legend>
+      <form id="updateProductForm">
+        <div class="grid-two">
+          <div>
+            <label for="updateId">Product ID</label>
+            <input id="updateId" name="updateId" type="number" min="1" required />
+          </div>
+          <div>
+            <label for="updateName">Name</label>
+            <input id="updateName" name="updateName" type="text" required placeholder="DoctorABC" />
+          </div>
+          <div>
+            <label for="updateTarget">Target audience</label>
+            <input id="updateTarget" name="updateTarget" type="text" required placeholder="patient/doctor/pharmacy" />
+          </div>
+          <div>
+            <label for="updateDescription">Description</label>
+            <input id="updateDescription" name="updateDescription" type="text" placeholder="Short description" />
+          </div>
+        </div>
+        <button type="submit">Update product</button>
+      </form>
+    </fieldset>
+
+    <fieldset>
+      <legend>Delete product</legend>
+      <form id="deleteProductForm">
+        <div>
+          <label for="deleteId">Product ID</label>
+          <input id="deleteId" name="deleteId" type="number" min="1" required />
+        </div>
+        <button type="submit">Delete product</button>
+      </form>
+    </fieldset>
+
+    <h3>Status</h3>
+    <pre id="status">Not logged in</pre>
+
+    <h3>Products</h3>
+    <pre id="products">[]</pre>
   </div>
-
-  <fieldset>
-    <legend>Add product</legend>
-    <form id="createProductForm">
-      <div>
-        <label for="slug">Slug</label>
-        <input id="slug" name="slug" type="text" required placeholder="doctorabc" />
-      </div>
-      <div>
-        <label for="name">Name</label>
-        <input id="name" name="name" type="text" required placeholder="DoctorABC" />
-      </div>
-      <div>
-        <label for="target">Target audience</label>
-        <input id="target" name="target" type="text" required placeholder="patient/doctor/pharmacy" />
-      </div>
-      <div>
-        <label for="description">Description</label>
-        <input id="description" name="description" type="text" placeholder="Short description" />
-      </div>
-      <button type="submit">Create product</button>
-    </form>
-  </fieldset>
-
-  <fieldset>
-    <legend>Update product</legend>
-    <form id="updateProductForm">
-      <div>
-        <label for="updateId">Product ID</label>
-        <input id="updateId" name="updateId" type="number" min="1" required />
-      </div>
-      <div>
-        <label for="updateName">Name</label>
-        <input id="updateName" name="updateName" type="text" required placeholder="DoctorABC" />
-      </div>
-      <div>
-        <label for="updateTarget">Target audience</label>
-        <input id="updateTarget" name="updateTarget" type="text" required placeholder="patient/doctor/pharmacy" />
-      </div>
-      <div>
-        <label for="updateDescription">Description</label>
-        <input id="updateDescription" name="updateDescription" type="text" placeholder="Short description" />
-      </div>
-      <button type="submit">Update product</button>
-    </form>
-  </fieldset>
-
-  <fieldset>
-    <legend>Delete product</legend>
-    <form id="deleteProductForm">
-      <div>
-        <label for="deleteId">Product ID</label>
-        <input id="deleteId" name="deleteId" type="number" min="1" required />
-      </div>
-      <button type="submit">Delete product</button>
-    </form>
-  </fieldset>
-
-  <h3>Status</h3>
-  <pre id="status">Not logged in</pre>
-
-  <h3>Products</h3>
-  <pre id="products">[]</pre>
 
   <script>
     const API_BASE = "http://localhost:3000"; // API server base URL
     const statusEl = document.getElementById("status");
     const productsEl = document.getElementById("products");
+    const loginStatusEl = document.getElementById("loginStatus");
 
     let token = "";
 
@@ -184,30 +256,22 @@
     document.getElementById("loginForm").addEventListener("submit", async (e) => {
       e.preventDefault();
       setStatus("Logging in...");
+      loginStatusEl.textContent = "Authenticating...";
       try {
         const email = document.getElementById("email").value;
         const password = document.getElementById("password").value;
         const data = await login(email, password);
-      token = data.token;
-      setStatus(`Logged in as ${data.user.email}, token expires ${data.expiresAt}`);
-    } catch (err) {
-      setStatus(err.message);
-      token = "";
-    }
-    });
-
-    document.getElementById("loadProducts").addEventListener("click", async () => {
-      if (!token) {
-        setStatus("Login first to get a token");
-        return;
-      }
-      setStatus("Loading products...");
-      try {
-        const data = await fetchProducts();
-        setProducts(data.products);
+        token = data.token;
+        setStatus(`Logged in as ${data.user.email}, token expires ${data.expiresAt}`);
+        loginStatusEl.textContent = "Logged in";
+        // auto-load products
+        const products = await fetchProducts();
+        setProducts(products.products);
         setStatus("Products loaded");
       } catch (err) {
         setStatus(err.message);
+        loginStatusEl.textContent = "Login failed";
+        token = "";
       }
     });
 

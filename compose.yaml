@@ -83,6 +83,59 @@ services:
       start_period: 30s
     restart: unless-stopped
 
+  ticdc:
+    image: pingcap/ticdc:v8.5.4
+    container_name: tidb-cdc
+    command:
+      - /cdc
+      - server
+      - --pd=http://pd:2379
+      - --addr=0.0.0.0:8300
+      - --advertise-addr=ticdc:8300
+      - --data-dir=/data/cdc
+      - --log-level=info
+    volumes:
+      - ticdc-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://ticdc:8300/api/v1/status || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    depends_on:
+      pd:
+        condition: service_healthy
+      tikv:
+        condition: service_started
+      tidb:
+        condition: service_healthy
+    restart: unless-stopped
+
+  changefeed-init:
+    image: pingcap/ticdc:v8.5.4
+    container_name: changefeed-init
+    environment:
+      CF_ID: tidb-to-kafka
+      SERVER: http://ticdc:8300
+      SINK_URI: kafka://kafka:9092/tidb_changes?protocol=canal-json&partition-num=1&kafka-version=3.7.0
+    command:
+      - /bin/sh
+      - -c
+      - |
+        set -e
+        CF_ID=$${CF_ID:-tidb-to-kafka}
+        SERVER=$${SERVER:-http://ticdc:8300}
+        SINK_URI=$${SINK_URI:-kafka://kafka:9092/tidb_changes?protocol=canal-json&partition-num=1&kafka-version=3.7.0}
+        echo "changefeed: creating $${CF_ID} -> $${SINK_URI}"
+        /cdc cli changefeed create --server="$${SERVER}" --changefeed-id="$${CF_ID}" --sink-uri="$${SINK_URI}" \
+          || /cdc cli changefeed resume --server="$${SERVER}" --changefeed-id="$${CF_ID}"
+        echo "changefeed: done"
+    depends_on:
+      ticdc:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    restart: "no"
+
   db-init:
     image: mysql:8.0
     container_name: helfy-db-init
@@ -99,6 +152,7 @@ services:
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
+        set -e
         DB_HOST=$${DB_HOST:-tidb}
         DB_PORT=$${DB_PORT:-4000}
         DB_USER=$${DB_USER:-root}
@@ -109,12 +163,19 @@ services:
           PW_OPT="--password=$${DB_PASSWORD}"
         fi
 
+        echo "db-init: waiting for TiDB at $${DB_HOST}:$${DB_PORT} ..."
         until mysqladmin ping -h "$${DB_HOST}" -P "$${DB_PORT}" -u "$${DB_USER}" $${PW_OPT} --silent; do
-          echo "waiting for TiDB...";
+          echo "db-init: still waiting for TiDB...";
           sleep 2;
         done;
-        mysql -h "$${DB_HOST}" -P "$${DB_PORT}" -u "$${DB_USER}" $${PW_OPT} < /db/init.sql;
-        mysql -h "$${DB_HOST}" -P "$${DB_PORT}" -u "$${DB_USER}" $${PW_OPT} < /db/seed.sql;
+
+        echo "db-init: applying init.sql"
+        mysql -h "$${DB_HOST}" -P "$${DB_PORT}" -u "$${DB_USER}" $${PW_OPT} < /db/init.sql || { echo "db-init: init.sql failed"; exit 1; }
+
+        echo "db-init: applying seed.sql"
+        mysql -h "$${DB_HOST}" -P "$${DB_PORT}" -u "$${DB_USER}" $${PW_OPT} < /db/seed.sql || { echo "db-init: seed.sql failed"; exit 1; }
+
+        echo "db-init: completed successfully"
     restart: "no"
 
   api:
@@ -166,7 +227,36 @@ services:
       retries: 5
     restart: unless-stopped
 
+  consumer:
+    build: ./consumer
+    container_name: helfy-consumer
+    environment:
+      - KAFKA_BROKERS=kafka:9092
+      - KAFKA_TOPIC=tidb_changes
+      - KAFKA_GROUP=helfy-cdc-consumer
+      - KAFKA_TOPIC_PARTITIONS=1
+      - KAFKA_TOPIC_REPLICATION=1
+      - KAFKA_TOPIC_CREATE_ATTEMPTS=10
+      - KAFKA_TOPIC_CREATE_BACKOFF_MS=1000
+      - KAFKA_TOPIC_CREATE_BACKOFF_MAX_MS=30000
+    depends_on:
+      kafka:
+        condition: service_healthy
+      changefeed-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "node -e \"fetch('http://localhost:8081/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\"",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
 volumes:
   pd-data:
   tikv-data:
+  ticdc-data:
   kafka_kraft:
