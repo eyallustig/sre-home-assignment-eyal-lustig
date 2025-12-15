@@ -26,7 +26,7 @@ Minimal full-stack setup with TiDB, Node.js API, simple client, Kafka + TiCDC, a
 - `pd`, `tikv`, `tidb`: TiDB cluster (store + SQL endpoint on 4000).
 - `db-init`: one-shot schema + seed loader (`db/init.sql`, `db/seed.sql`).
 - `api`: Node.js/Express auth + products API (`/api/login`, `/api/products`, health at `/health`).
-- `client`: Minimal static UI on `http://localhost:8080` (login + CRUD: add/update/delete products; products load automatically after login).
+- `client`: Minimal static UI on `http://localhost:8080` (login + CRUD: add/update/delete products; products load automatically after login). Default login: email `admin@helfy.local`, password `Password123!`
 - `kafka`: Single-node Kafka (KRaft) broker.
 - `ticdc`: TiCDC server.
 - `changefeed-init`: creates/resumes changefeed from TiDB to Kafka topic `tidb_changes` (canal-json).
