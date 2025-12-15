@@ -1,12 +1,19 @@
 import mysql from "mysql2/promise";
 
-const {
-  DB_HOST = "127.0.0.1",
-  DB_PORT = "4000",
-  DB_USER = "root",
-  DB_PASSWORD = "",
-  DB_NAME = "helfy",
-} = process.env;
+const { DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME } = process.env;
+
+const required = { DB_HOST, DB_PORT, DB_USER, DB_NAME };
+const missing = Object.entries(required)
+  .filter(([, v]) => !v)
+  .map(([k]) => k);
+
+if (missing.length) {
+  throw new Error(
+    `Missing required DB env vars: ${missing.join(
+      ", "
+    )}. Set DB_HOST, DB_PORT, DB_USER, DB_PASSWORD (can be empty), DB_NAME.`
+  );
+}
 
 export const pool = mysql.createPool({
   host: DB_HOST,

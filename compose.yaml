@@ -56,6 +56,67 @@ services:
         condition: service_started
     restart: unless-stopped
 
+  kafka:
+    image: confluentinc/cp-kafka:8.0.3
+    container_name: kafka
+    environment:
+      KAFKA_KRAFT_MODE: "true"
+      CLUSTER_ID: "1L6g7nGhU-eAKfL--X25wo"
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_LOG_DIRS: /tmp/kraft-combined-logs
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    volumes:
+      - kafka_kraft:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD", "bash", "-c", "kafka-broker-api-versions --bootstrap-server localhost:9092 >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+    restart: unless-stopped
+
+  db-init:
+    image: mysql:8.0
+    container_name: helfy-db-init
+    volumes:
+      - ./db:/db:ro
+    environment:
+      DB_HOST: tidb
+      DB_PORT: 4000
+      DB_USER: root
+      DB_PASSWORD: ""
+    depends_on:
+      tidb:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        DB_HOST=$${DB_HOST:-tidb}
+        DB_PORT=$${DB_PORT:-4000}
+        DB_USER=$${DB_USER:-root}
+        DB_PASSWORD=$${DB_PASSWORD:-}
+
+        PW_OPT=""
+        if [ -n "$${DB_PASSWORD}" ]; then
+          PW_OPT="--password=$${DB_PASSWORD}"
+        fi
+
+        until mysqladmin ping -h "$${DB_HOST}" -P "$${DB_PORT}" -u "$${DB_USER}" $${PW_OPT} --silent; do
+          echo "waiting for TiDB...";
+          sleep 2;
+        done;
+        mysql -h "$${DB_HOST}" -P "$${DB_PORT}" -u "$${DB_USER}" $${PW_OPT} < /db/init.sql;
+        mysql -h "$${DB_HOST}" -P "$${DB_PORT}" -u "$${DB_USER}" $${PW_OPT} < /db/seed.sql;
+    restart: "no"
+
   api:
     build: ./api
     container_name: helfy-api
@@ -69,8 +130,19 @@ services:
     depends_on:
       tidb:
         condition: service_healthy
+      db-init:
+        condition: service_completed_successfully
     ports:
       - "3000:3000"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "node -e \"fetch('http://localhost:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\"",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     restart: unless-stopped
 
   client:
@@ -79,11 +151,22 @@ services:
     environment:
       - WEB_PORT=8080
     depends_on:
-      - api
+      api:
+        condition: service_healthy
     ports:
       - "8080:8080"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "node -e \"fetch('http://localhost:8080').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\"",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     restart: unless-stopped
 
 volumes:
   pd-data:
   tikv-data:
+  kafka_kraft:
