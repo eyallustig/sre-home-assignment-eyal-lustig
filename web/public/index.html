@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Helfy Login Demo</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 2rem auto; max-width: 640px; }
+    form { display: grid; gap: 0.5rem; margin-bottom: 1rem; }
+    label { font-weight: bold; }
+    input { padding: 0.4rem; }
+    button { padding: 0.5rem 0.75rem; }
+    pre { background: #f7f7f7; padding: 0.75rem; border: 1px solid #ddd; }
+    fieldset { border: 1px solid #ccc; padding: 1rem; margin-top: 1rem; }
+    legend { padding: 0 0.5rem; font-weight: bold; }
+  </style>
+</head>
+  <body>
+  <h1>Helfy Login + Products</h1>
+  <p>Login and fetch protected products via the API.</p>
+
+  <form id="loginForm">
+    <div>
+      <label for="email">Email</label>
+      <input id="email" name="email" type="email" required placeholder="you@example.com" />
+    </div>
+    <div>
+      <label for="password">Password</label>
+      <input id="password" name="password" type="password" required placeholder="Enter password" />
+    </div>
+    <button type="submit">Login</button>
+  </form>
+
+  <div>
+    <button id="loadProducts">Load Products</button>
+    <button id="clearToken" type="button">Clear token</button>
+  </div>
+
+  <fieldset>
+    <legend>Add product</legend>
+    <form id="createProductForm">
+      <div>
+        <label for="slug">Slug</label>
+        <input id="slug" name="slug" type="text" required placeholder="doctorabc" />
+      </div>
+      <div>
+        <label for="name">Name</label>
+        <input id="name" name="name" type="text" required placeholder="DoctorABC" />
+      </div>
+      <div>
+        <label for="target">Target audience</label>
+        <input id="target" name="target" type="text" required placeholder="patient/doctor/pharmacy" />
+      </div>
+      <div>
+        <label for="description">Description</label>
+        <input id="description" name="description" type="text" placeholder="Short description" />
+      </div>
+      <button type="submit">Create product</button>
+    </form>
+  </fieldset>
+
+  <fieldset>
+    <legend>Delete product</legend>
+    <form id="deleteProductForm">
+      <div>
+        <label for="deleteId">Product ID</label>
+        <input id="deleteId" name="deleteId" type="number" min="1" required />
+      </div>
+      <button type="submit">Delete product</button>
+    </form>
+  </fieldset>
+
+  <h3>Status</h3>
+  <pre id="status">Not logged in</pre>
+
+  <h3>Products</h3>
+  <pre id="products">[]</pre>
+
+  <script>
+    const API_BASE = "http://localhost:3000"; // API server base URL
+    const statusEl = document.getElementById("status");
+    const productsEl = document.getElementById("products");
+
+    let token = localStorage.getItem("helfy_token") || "";
+
+    function setStatus(text) {
+      statusEl.textContent = text;
+    }
+
+    function setProducts(data) {
+      productsEl.textContent = JSON.stringify(data, null, 2);
+    }
+
+    async function login(email, password) {
+      const res = await fetch(`${API_BASE}/api/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || "Login failed");
+      }
+      return res.json();
+    }
+
+    async function fetchProducts() {
+      const res = await fetch(`${API_BASE}/api/products`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || "Fetch failed");
+      }
+      return res.json();
+    }
+
+    async function createProduct(payload) {
+      const res = await fetch(`${API_BASE}/api/products`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || "Create failed");
+      }
+      return res.json();
+    }
+
+    async function deleteProduct(id) {
+      const res = await fetch(`${API_BASE}/api/products/${id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || "Delete failed");
+      }
+      return res.json();
+    }
+
+    document.getElementById("loginForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      setStatus("Logging in...");
+      try {
+        const email = document.getElementById("email").value;
+        const password = document.getElementById("password").value;
+        const data = await login(email, password);
+        token = data.token;
+        localStorage.setItem("helfy_token", token);
+        setStatus(`Logged in as ${data.user.email}, token expires ${data.expiresAt}`);
+      } catch (err) {
+        setStatus(err.message);
+        token = "";
+      }
+    });
+
+    document.getElementById("loadProducts").addEventListener("click", async () => {
+      if (!token) {
+        setStatus("Login first to get a token");
+        return;
+      }
+      setStatus("Loading products...");
+      try {
+        const data = await fetchProducts();
+        setProducts(data.products);
+        setStatus("Products loaded");
+      } catch (err) {
+        setStatus(err.message);
+      }
+    });
+
+    document.getElementById("clearToken").addEventListener("click", () => {
+      localStorage.removeItem("helfy_token");
+      token = "";
+      setStatus("Token cleared; please login again");
+      setProducts([]);
+    });
+
+    document
+      .getElementById("createProductForm")
+      .addEventListener("submit", async (e) => {
+        e.preventDefault();
+        if (!token) {
+          setStatus("Login first to create products");
+          return;
+        }
+        setStatus("Creating product...");
+        try {
+          const payload = {
+            slug: document.getElementById("slug").value,
+            name: document.getElementById("name").value,
+            target_audience: document.getElementById("target").value,
+            description: document.getElementById("description").value,
+          };
+          const data = await createProduct(payload);
+          setStatus(`Created product id=${data.product.id}`);
+          // refresh list
+          const products = await fetchProducts();
+          setProducts(products.products);
+        } catch (err) {
+          setStatus(err.message);
+        }
+      });
+
+    document
+      .getElementById("deleteProductForm")
+      .addEventListener("submit", async (e) => {
+        e.preventDefault();
+        if (!token) {
+          setStatus("Login first to delete products");
+          return;
+        }
+        setStatus("Deleting product...");
+        try {
+          const id = document.getElementById("deleteId").value;
+          await deleteProduct(id);
+          setStatus(`Deleted product id=${id}`);
+          // refresh list
+          const products = await fetchProducts();
+          setProducts(products.products);
+        } catch (err) {
+          setStatus(err.message);
+        }
+      });
+
+    if (token) {
+      setStatus("Token found in localStorage; click Load Products.");
+    }
+  </script>
+</body>
+</html>

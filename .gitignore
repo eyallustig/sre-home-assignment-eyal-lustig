@@ -1,0 +1,22 @@
+# Node / frontend
+node_modules/
+dist/
+build/
+
+# Environment / secrets
+.env
+.env/
+
+# Logs and caches
+*.log
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.eslintcache
+.cache/
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
