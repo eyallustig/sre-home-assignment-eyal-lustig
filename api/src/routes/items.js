@@ -63,6 +63,71 @@ router.post("/products", authMiddleware, async (req, res) => {
   }
 });
 
+router.put("/products/:id", authMiddleware, async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id <= 0) {
+      return res.status(400).json({ error: "Invalid product id" });
+    }
+
+    const name = (req.body?.name || "").trim();
+    const target = (req.body?.target_audience || "").trim();
+    const description =
+      typeof req.body?.description === "string"
+        ? req.body.description.trim()
+        : null;
+
+    // Slug is immutable to avoid CDC emitting DELETE+INSERT for updates to unique keys.
+    if (typeof req.body?.slug === "string" && req.body.slug.trim() !== "") {
+      return res.status(400).json({ error: "slug cannot be updated" });
+    }
+
+    if (!name || !target) {
+      return res
+        .status(400)
+        .json({ error: "name, target_audience are required" });
+    }
+
+    const [rows] = await pool.execute(
+      "SELECT slug FROM products WHERE id = ? LIMIT 1",
+      [id]
+    );
+
+    const existing = rows[0];
+    if (!existing) {
+      return res.status(404).json({ error: "Product not found" });
+    }
+
+    const [result] = await pool.execute(
+      "UPDATE products SET name = ?, target_audience = ?, description = ? WHERE id = ?",
+      [name, target, description || null, id]
+    );
+
+    const currentSlug = existing.slug;
+
+    logger.info({
+      action: "product_update",
+      user_id: req.user?.id,
+      product_id: id,
+      slug: currentSlug,
+    });
+
+    return res.json({
+      product: {
+        id,
+        slug: currentSlug,
+        name,
+        target_audience: target,
+        description,
+      },
+      updated: true,
+    });
+  } catch (err) {
+    console.error("update product error:", err);
+    res.status(500).json({ error: "Failed to update product" });
+  }
+});
+
 router.delete("/products/:id", authMiddleware, async (req, res) => {
   try {
     const id = Number(req.params.id);

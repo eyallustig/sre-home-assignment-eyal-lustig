@@ -59,6 +59,29 @@
   </fieldset>
 
   <fieldset>
+    <legend>Update product</legend>
+    <form id="updateProductForm">
+      <div>
+        <label for="updateId">Product ID</label>
+        <input id="updateId" name="updateId" type="number" min="1" required />
+      </div>
+      <div>
+        <label for="updateName">Name</label>
+        <input id="updateName" name="updateName" type="text" required placeholder="DoctorABC" />
+      </div>
+      <div>
+        <label for="updateTarget">Target audience</label>
+        <input id="updateTarget" name="updateTarget" type="text" required placeholder="patient/doctor/pharmacy" />
+      </div>
+      <div>
+        <label for="updateDescription">Description</label>
+        <input id="updateDescription" name="updateDescription" type="text" placeholder="Short description" />
+      </div>
+      <button type="submit">Update product</button>
+    </form>
+  </fieldset>
+
+  <fieldset>
     <legend>Delete product</legend>
     <form id="deleteProductForm">
       <div>
@@ -130,6 +153,22 @@
       return res.json();
     }
 
+    async function updateProduct(id, payload) {
+      const res = await fetch(`${API_BASE}/api/products/${id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || "Update failed");
+      }
+      return res.json();
+    }
+
     async function deleteProduct(id) {
       const res = await fetch(`${API_BASE}/api/products/${id}`, {
         method: "DELETE",
@@ -191,6 +230,31 @@
           const data = await createProduct(payload);
           setStatus(`Created product id=${data.product.id}`);
           // refresh list
+          const products = await fetchProducts();
+          setProducts(products.products);
+        } catch (err) {
+          setStatus(err.message);
+        }
+      });
+
+    document
+      .getElementById("updateProductForm")
+      .addEventListener("submit", async (e) => {
+        e.preventDefault();
+        if (!token) {
+          setStatus("Login first to update products");
+          return;
+        }
+        setStatus("Updating product...");
+        try {
+          const id = document.getElementById("updateId").value;
+          const payload = {
+            name: document.getElementById("updateName").value,
+            target_audience: document.getElementById("updateTarget").value,
+            description: document.getElementById("updateDescription").value,
+          };
+          await updateProduct(id, payload);
+          setStatus(`Updated product id=${id}`);
           const products = await fetchProducts();
           setProducts(products.products);
         } catch (err) {
