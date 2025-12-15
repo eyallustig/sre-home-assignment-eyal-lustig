@@ -1,7 +1,7 @@
 {
-  "name": "helfy-web",
+  "name": "helfy-client",
   "version": "1.0.0",
-  "description": "Minimal frontend for login and products",
+  "description": "Minimal client for login and products",
   "type": "module",
   "main": "server.js",
   "scripts": {

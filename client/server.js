@@ -8,7 +8,7 @@ const PORT = process.env.WEB_PORT || 8080;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-log4js.addLayout("json-web", () => {
+log4js.addLayout("json-client", () => {
   return (event) => {
     const [first] = event.data;
     const payload =
@@ -25,11 +25,11 @@ log4js.addLayout("json-web", () => {
 });
 
 log4js.configure({
-  appenders: { console: { type: "stdout", layout: { type: "json-web" } } },
+  appenders: { console: { type: "stdout", layout: { type: "json-client" } } },
   categories: { default: { appenders: ["console"], level: "info" } },
 });
 
-const logger = log4js.getLogger("web");
+const logger = log4js.getLogger("client");
 
 const publicDir = path.join(__dirname, "public");
 app.use((req, res, next) => {

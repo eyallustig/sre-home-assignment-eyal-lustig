@@ -33,7 +33,6 @@
 
   <div>
     <button id="loadProducts">Load Products</button>
-    <button id="clearToken" type="button">Clear token</button>
   </div>
 
   <fieldset>
@@ -81,7 +80,7 @@
     const statusEl = document.getElementById("status");
     const productsEl = document.getElementById("products");
 
-    let token = localStorage.getItem("helfy_token") || "";
+    let token = "";
 
     function setStatus(text) {
       statusEl.textContent = text;
@@ -150,13 +149,12 @@
         const email = document.getElementById("email").value;
         const password = document.getElementById("password").value;
         const data = await login(email, password);
-        token = data.token;
-        localStorage.setItem("helfy_token", token);
-        setStatus(`Logged in as ${data.user.email}, token expires ${data.expiresAt}`);
-      } catch (err) {
-        setStatus(err.message);
-        token = "";
-      }
+      token = data.token;
+      setStatus(`Logged in as ${data.user.email}, token expires ${data.expiresAt}`);
+    } catch (err) {
+      setStatus(err.message);
+      token = "";
+    }
     });
 
     document.getElementById("loadProducts").addEventListener("click", async () => {
@@ -172,13 +170,6 @@
       } catch (err) {
         setStatus(err.message);
       }
-    });
-
-    document.getElementById("clearToken").addEventListener("click", () => {
-      localStorage.removeItem("helfy_token");
-      token = "";
-      setStatus("Token cleared; please login again");
-      setProducts([]);
     });
 
     document
@@ -228,9 +219,6 @@
         }
       });
 
-    if (token) {
-      setStatus("Token found in localStorage; click Load Products.");
-    }
   </script>
 </body>
 </html>
